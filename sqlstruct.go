@@ -1,4 +1,5 @@
 // Copyright 2012 Kamil Kisiel. All rights reserved.
+// Copyright 2021 Pavlo Golub. All rights reserved.
 // Use of this source code is governed by the MIT
 // license which can be found in the LICENSE file.
 
@@ -79,16 +80,17 @@ WHERE u.username = ?
     // output: "{Id:2 City:Vilnius Street:Plento 34}"
 
 */
-package sqlstruct
+package pgxstruct
 
 import (
 	"bytes"
-	"database/sql"
 	"fmt"
 	"reflect"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/jackc/pgproto3/v2"
 )
 
 // NameMapper is the function used to convert struct fields which do not have sql tags
@@ -102,7 +104,7 @@ import (
 // Alternatively for a custom mapping, any func(string) string can be used instead.
 var NameMapper func(string) string = strings.ToLower
 
-// A cache of fieldInfos to save reflecting every time. Inspried by encoding/xml
+// A cache of fieldInfos to save reflecting every time. Inspired by encoding/xml
 var finfos map[reflect.Type]fieldInfo
 var finfoLock sync.RWMutex
 
@@ -120,7 +122,7 @@ func init() {
 // It is implemented by the sql.Rows type from the standard library
 type Rows interface {
 	Scan(...interface{}) error
-	Columns() ([]string, error)
+	FieldDescriptions() []pgproto3.FieldDescription
 }
 
 // getFieldInfo creates a fieldInfo for the provided type. Fields that are not tagged
@@ -235,12 +237,13 @@ func doScan(dest interface{}, rows Rows, alias string) error {
 	elem := destv.Elem()
 	var values []interface{}
 
-	cols, err := rows.Columns()
-	if err != nil {
-		return err
+	cols := rows.FieldDescriptions()
+	if len(cols) == 0 {
+		return fmt.Errorf("Cannot obtain fields descritptions: %+v", cols)
 	}
 
-	for _, name := range cols {
+	for _, col := range cols {
+		name := string(col.Name)
 		if len(alias) > 0 {
 			name = strings.Replace(name, alias+"_", "", 1)
 		}
@@ -248,7 +251,7 @@ func doScan(dest interface{}, rows Rows, alias string) error {
 		var v interface{}
 		if !ok {
 			// There is no field mapped to this column so we discard it
-			v = &sql.RawBytes{}
+			v = nil
 		} else {
 			v = elem.FieldByIndex(idx).Addr().Interface()
 		}
