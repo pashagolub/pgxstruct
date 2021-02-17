@@ -58,7 +58,7 @@ INNER JOIN address AS a ON a.id = u.address_id
 WHERE u.username = ?
 `
     sql = fmt.Sprintf(sql, pgxstruct.ColumnsAliased(*user, "u"), pgxstruct.ColumnsAliased(*address, "a"))
-    rows, err := conn.Query(sql, "gedi")
+    rows, err := conn.Query(context.Background(), sql, "gedi")
     if err != nil {
         log.Fatal(err)
     }
@@ -119,7 +119,7 @@ func init() {
 }
 
 // Rows defines the interface of types that are scannable with the Scan function.
-// It is implemented by the sql.Rows type from the standard library
+// It is implemented by the pgx.Rows type from the jackc/pgx library.
 type Rows interface {
 	Scan(...interface{}) error
 	FieldDescriptions() []pgproto3.FieldDescription
