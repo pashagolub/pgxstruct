@@ -1,11 +1,13 @@
 // Copyright 2012 Kamil Kisiel. All rights reserved.
 // Use of this source code is governed by the MIT
 // license which can be found in the LICENSE file.
-package sqlstruct
+package pgxstruct
 
 import (
 	"reflect"
 	"testing"
+
+	"github.com/jackc/pgproto3/v2"
 )
 
 type EmbeddedType struct {
@@ -33,6 +35,10 @@ type testRows struct {
 
 func (r testRows) Scan(dest ...interface{}) error {
 	for i := range r.values {
+		if dest[i] == nil {
+			//ignore this column
+			continue
+		}
 		v := reflect.ValueOf(dest[i])
 		if v.Kind() != reflect.Ptr {
 			panic("Not a pointer!")
@@ -48,8 +54,12 @@ func (r testRows) Scan(dest ...interface{}) error {
 	return nil
 }
 
-func (r testRows) Columns() ([]string, error) {
-	return r.columns, nil
+func (r testRows) FieldDescriptions() []pgproto3.FieldDescription {
+	var defs []pgproto3.FieldDescription
+	for _, col := range r.columns {
+		defs = append(defs, pgproto3.FieldDescription{Name: []byte(col)})
+	}
+	return defs
 }
 
 func (r *testRows) addValue(c string, v interface{}) {

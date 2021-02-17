@@ -4,8 +4,8 @@
 // license which can be found in the LICENSE file.
 
 /*
-Package sqlstruct provides some convenience functions for using structs with
-the Go standard library's database/sql package.
+Package pgxstruct provides some convenience functions for using structs with
+the Go standard library's jackc/pgx package.
 
 The package matches struct field names to SQL query column names. A field can
 also specify a matching column with "sql" tag, if it's different from field
@@ -20,12 +20,12 @@ For example:
         F3 string `sql:"-"`
     }
 
-    rows, err := db.Query(fmt.Sprintf("SELECT %s FROM tablename", sqlstruct.Columns(T{})))
+    rows, err := conn.Query(fmt.Sprintf("SELECT %s FROM tablename", pgxstruct.Columns(T{})))
     ...
 
     for rows.Next() {
     	var t T
-        err = sqlstruct.Scan(&t, rows)
+        err = pgxstruct.Scan(&t, rows)
         ...
     }
 
@@ -57,18 +57,18 @@ SELECT %s, %s FROM users AS u
 INNER JOIN address AS a ON a.id = u.address_id
 WHERE u.username = ?
 `
-    sql = fmt.Sprintf(sql, sqlstruct.ColumnsAliased(*user, "u"), sqlstruct.ColumnsAliased(*address, "a"))
-    rows, err := db.Query(sql, "gedi")
+    sql = fmt.Sprintf(sql, pgxstruct.ColumnsAliased(*user, "u"), pgxstruct.ColumnsAliased(*address, "a"))
+    rows, err := conn.Query(sql, "gedi")
     if err != nil {
         log.Fatal(err)
     }
     defer rows.Close()
     if rows.Next() {
-        err = sqlstruct.ScanAliased(&user, rows, "u")
+        err = pgxstruct.ScanAliased(&user, rows, "u")
         if err != nil {
             log.Fatal(err)
         }
-        err = sqlstruct.ScanAliased(&address, rows, "a")
+        err = pgxstruct.ScanAliased(&address, rows, "a")
         if err != nil {
             log.Fatal(err)
         }
@@ -97,9 +97,9 @@ import (
 // into database column names.
 //
 // The default mapper converts field names to lower case. If instead you would prefer
-// field names converted to snake case, simply assign sqlstruct.ToSnakeCase to the variable:
+// field names converted to snake case, simply assign pgxstruct.ToSnakeCase to the variable:
 //
-//		sqlstruct.NameMapper = sqlstruct.ToSnakeCase
+//		pgxstruct.NameMapper = pgxstruct.ToSnakeCase
 //
 // Alternatively for a custom mapping, any func(string) string can be used instead.
 var NameMapper func(string) string = strings.ToLower
